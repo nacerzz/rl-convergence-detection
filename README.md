@@ -6,7 +6,7 @@ Detecting Reinforcement Learning Training Convergence Using Intrinsic Learning S
 
 In reinforcement learning, training is often stopped after a fixed number of steps. However, this can waste computation if the agent has already converged earlier. This project investigates whether lightweight intrinsic signals can help detect when an RL agent has stopped learning.
 
-We use PPO on `CartPole-v1` and log different training signals:
+We use PPO and log different training signals:
 
 - evaluation return
 - RND prediction error
@@ -14,7 +14,7 @@ We use PPO on `CartPole-v1` and log different training signals:
 - visited states
 - training steps
 
-The goal is to compare fixed-budget training with an automatic stopping rule.
+The main experiment compares fixed-budget training with an automatic stopping rule on `CartPole-v1`. We also include a small `Acrobot-v1` stress test to check whether the same signals behave similarly in a harder environment.
 
 ## Research Question
 
@@ -29,13 +29,18 @@ We compare two training settings:
 
 The automatic stopping rule uses three conditions:
 
-- mean evaluation return is at least 380
-- mean RND prediction error is below 0.0002
+- mean evaluation return is high enough
+- mean RND prediction error is low
 - policy entropy is stable over recent evaluations
 
-The stopping rule uses a patience of 3 evaluations.
+For the CartPole-v1 experiment, the stopping rule uses:
 
-## Results
+- patience = 3 evaluations
+- mean evaluation return >= 380
+- mean RND prediction error <= 0.0002
+- policy entropy change <= 0.04
+
+## Main Experiment: CartPole-v1
 
 In the first pilot experiment, the automatic stopping rule was too strict and did not trigger. Both fixed-budget and automatic-stopping runs used the full 30,000 training steps.
 
@@ -47,7 +52,7 @@ The automatic stopping rule reduced the average training budget from 30,000 step
 
 ## Ablation Analysis
 
-To better understand which signal drives the stopping behavior, we also performed an offline ablation using the fixed-budget runs. We compared four stopping rules:
+To better understand which signal drives the stopping behavior, we performed an offline ablation using the fixed-budget CartPole-v1 runs. We compared four stopping rules:
 
 - return-only
 - RND-only
@@ -58,15 +63,23 @@ The ablation showed that the intrinsic signals alone stop much earlier than the 
 
 Return-only stopping triggered after about 9,667 steps on average, close to the combined rule. The combined rule stopped after about 10,333 steps on average and is more conservative because it requires both sufficient evaluation performance and stabilization of intrinsic signals.
 
+## Acrobot-v1 Stress Test
+
+In addition to the main CartPole-v1 experiment, we ran a small Acrobot-v1 stress test. Acrobot-v1 is a harder control task with a continuous observation space.
+
+In this environment, the automatic stopping rule did not trigger within 30,000 steps. The evaluation return remained noisy and unstable, while RND prediction error and policy entropy did not provide a clear convergence point.
+
+This supports the interpretation that RND prediction error and policy entropy are proxy signals, not direct convergence measures. While the combined rule worked well on CartPole-v1, it does not directly generalize to Acrobot-v1 without environment-specific tuning.
+
 ## Interpretation
 
-The evaluation return increases quickly during early training and reaches a high level around the stopping point.
+The CartPole-v1 results show that the evaluation return increases quickly during early training and reaches a high level around the stopping point.
 
 The RND prediction error drops strongly at the beginning and then becomes almost flat. This suggests that the agent first encounters novel states and later visits a more stable state distribution.
 
 The policy entropy decreases during training, indicating that the policy becomes more deterministic and explores less.
 
-Together, these results suggest that RND prediction error and policy entropy can provide useful supporting information about training progress. However, they should not be interpreted as direct convergence measures by themselves. The combined stopping rule is safer because it also requires sufficient evaluation performance.
+However, the Acrobot-v1 stress test shows that these signals do not always provide a reliable convergence point in harder environments. Therefore, intrinsic signals should not be interpreted as direct convergence measures by themselves. They are useful supporting signals, especially when combined with evaluation performance.
 
 ## How to Run
 
@@ -76,13 +89,13 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Run the experiment:
+Run the CartPole-v1 experiment:
 
 ```bash
 python experiments/run_experiment.py
 ```
 
-Generate plots:
+Generate CartPole-v1 plots:
 
 ```bash
 python analysis/plots.py
@@ -100,6 +113,18 @@ Run ablation analysis:
 python analysis/ablation_analysis.py
 ```
 
+Run the Acrobot-v1 stress test:
+
+```bash
+python experiments/run_acrobot.py
+```
+
+Generate Acrobot-v1 plots:
+
+```bash
+python analysis/plots_acrobot.py
+```
+
 Run tests:
 
 ```bash
@@ -108,19 +133,31 @@ python -m pytest tests
 
 ## Output Files
 
-Experiment results are saved in:
+CartPole-v1 experiment results are saved in:
 
 ```text
 results/cartpole/
 ```
 
-Plots and analysis summaries are saved in:
+CartPole-v1 plots and analysis summaries are saved in:
 
 ```text
 figures/cartpole/
 ```
 
-Important output files:
+Acrobot-v1 experiment results are saved in:
+
+```text
+results/acrobot/
+```
+
+Acrobot-v1 plots are saved in:
+
+```text
+figures/acrobot/
+```
+
+Important CartPole-v1 output files:
 
 - `evaluation_return.png`
 - `rnd_prediction_error.png`
@@ -130,13 +167,27 @@ Important output files:
 - `ablation_summary.csv`
 - `ablation_stopping_steps.csv`
 
+Important Acrobot-v1 output files:
+
+- `evaluation_return.png`
+- `rnd_prediction_error.png`
+- `policy_entropy.png`
+- `visited_states.png`
+- `combined_acrobot_results.csv`
+
 ## Project Structure
 
 ```text
 experiments/run_experiment.py
 ```
 
-Main experiment script. Runs PPO with fixed-budget training and automatic stopping.
+Main CartPole-v1 experiment script. Runs PPO with fixed-budget training and automatic stopping.
+
+```text
+experiments/run_acrobot.py
+```
+
+Small Acrobot-v1 stress test.
 
 ```text
 src/convergence_rl/
@@ -151,13 +202,13 @@ analysis/
 Contains scripts for generating plots, convergence summaries, and ablation analysis.
 
 ```text
-results/cartpole/
+results/
 ```
 
 Contains the raw CSV result files.
 
 ```text
-figures/cartpole/
+figures/
 ```
 
 Contains generated plots and summary CSV files.
@@ -170,6 +221,6 @@ Contains simple tests for the RND signal and convergence stopping rule.
 
 ## Limitation
 
-So far, the final experiment focuses on `CartPole-v1`. This environment is useful as a controlled proof of concept, but it is also relatively simple and dense-reward. Therefore, the observed relationship between evaluation return, RND prediction error, and policy entropy may not directly generalize to more difficult environments.
+The main successful result is shown on CartPole-v1, which is a relatively simple and dense-reward environment. In such an environment, evaluation return, RND prediction error, and policy entropy may move together because the task is easy.
 
-More environments, such as `Acrobot-v1`, `LunarLander-v3`, or MiniGrid tasks, would be needed to test whether the stopping signal generalizes beyond CartPole-v1.
+The Acrobot-v1 stress test shows that this relation is not guaranteed in a harder environment. The stopping rule did not trigger there within 30,000 steps, and the signals were less clearly aligned with performance. More environments and additional tuning would be needed to evaluate whether the stopping signal generalizes more broadly.

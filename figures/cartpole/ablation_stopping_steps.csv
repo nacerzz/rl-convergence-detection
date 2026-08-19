@@ -1,0 +1,13 @@
+rule,seed,stopping_step
+return_only,0,7000
+return_only,1,14000
+return_only,2,8000
+rnd_only,0,5000
+rnd_only,1,5000
+rnd_only,2,4000
+entropy_only,0,4000
+entropy_only,1,4000
+entropy_only,2,3000
+combined,0,9000
+combined,1,14000
+combined,2,8000

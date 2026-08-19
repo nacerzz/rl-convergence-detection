@@ -1,0 +1,7 @@
+gymnasium[classic-control]
+stable-baselines3
+torch
+numpy
+pandas
+matplotlib
+pytest

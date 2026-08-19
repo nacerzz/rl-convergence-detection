@@ -1,0 +1,3 @@
+method,mean,std,min,max
+Automatic stopping,10333.333333333334,3214.5502536643185,8000,14000
+Fixed budget,30000.0,0.0,30000,30000

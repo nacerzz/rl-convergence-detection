@@ -34,45 +34,45 @@ def load_results() -> pd.DataFrame:
     return pd.concat(dataframes, ignore_index=True)
 
 
+def get_single_curve(df: pd.DataFrame) -> pd.DataFrame:
+    # In Acrobot-v1, automatic stopping did not trigger.
+    # Therefore, the automatic-stopping and fixed-budget curves overlap.
+    # We plot only one curve to avoid a confusing legend.
+    method_df = df[df["method"] == "Automatic stopping"].copy()
+
+    if method_df.empty:
+        method_df = df[df["method"] == "Fixed budget"].copy()
+
+    return method_df.sort_values("timesteps")
+
+
 def plot_metric(
     df: pd.DataFrame,
     metric: str,
     ylabel: str,
     filename: str,
-    single_curve_label: str | None = None,
+    legend_label: str | None = None,
 ) -> None:
     plt.figure(figsize=(8, 5))
 
-    if single_curve_label is not None:
-        # For Acrobot evaluation return:
-        # automatic stopping did not trigger, so one curve is enough.
-        method_df = df[df["method"] == "Automatic stopping"].copy()
+    method_df = get_single_curve(df)
 
-        if method_df.empty:
-            method_df = df[df["method"] == "Fixed budget"].copy()
-
-        method_df = method_df.sort_values("timesteps")
-
+    if legend_label is not None:
         plt.plot(
             method_df["timesteps"],
             method_df[metric],
-            label=single_curve_label,
+            label=legend_label,
         )
-
+        plt.legend()
     else:
-        for method, method_df in df.groupby("method"):
-            method_df = method_df.sort_values("timesteps")
-
-            plt.plot(
-                method_df["timesteps"],
-                method_df[metric],
-                label=method,
-            )
+        plt.plot(
+            method_df["timesteps"],
+            method_df[metric],
+        )
 
     plt.xlabel("Training steps")
     plt.ylabel(ylabel)
     plt.title(ylabel + " during PPO training on Acrobot-v1")
-    plt.legend()
     plt.grid(True)
     plt.tight_layout()
 
@@ -93,7 +93,7 @@ def main() -> None:
         metric="eval_return_mean",
         ylabel="Evaluation return",
         filename="evaluation_return.png",
-        single_curve_label="No early stop (30,000 steps)",
+        legend_label="No early stop (30,000 steps)",
     )
 
     plot_metric(
@@ -113,7 +113,7 @@ def main() -> None:
     plot_metric(
         df,
         metric="visited_states",
-        ylabel="Visited states",
+        ylabel="Visited rounded states",
         filename="visited_states.png",
     )
 

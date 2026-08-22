@@ -34,17 +34,40 @@ def load_results() -> pd.DataFrame:
     return pd.concat(dataframes, ignore_index=True)
 
 
-def plot_metric(df: pd.DataFrame, metric: str, ylabel: str, filename: str) -> None:
+def plot_metric(
+    df: pd.DataFrame,
+    metric: str,
+    ylabel: str,
+    filename: str,
+    single_curve_label: str | None = None,
+) -> None:
     plt.figure(figsize=(8, 5))
 
-    for method, method_df in df.groupby("method"):
+    if single_curve_label is not None:
+        # For Acrobot evaluation return:
+        # automatic stopping did not trigger, so one curve is enough.
+        method_df = df[df["method"] == "Automatic stopping"].copy()
+
+        if method_df.empty:
+            method_df = df[df["method"] == "Fixed budget"].copy()
+
         method_df = method_df.sort_values("timesteps")
 
         plt.plot(
             method_df["timesteps"],
             method_df[metric],
-            label=method,
+            label=single_curve_label,
         )
+
+    else:
+        for method, method_df in df.groupby("method"):
+            method_df = method_df.sort_values("timesteps")
+
+            plt.plot(
+                method_df["timesteps"],
+                method_df[metric],
+                label=method,
+            )
 
     plt.xlabel("Training steps")
     plt.ylabel(ylabel)
@@ -70,6 +93,7 @@ def main() -> None:
         metric="eval_return_mean",
         ylabel="Evaluation return",
         filename="evaluation_return.png",
+        single_curve_label="No early stop (30,000 steps)",
     )
 
     plot_metric(
